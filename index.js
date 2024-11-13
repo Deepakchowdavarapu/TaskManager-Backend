@@ -36,7 +36,7 @@ app.post('/auth/register', async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const newUser = new User({
+        const newUser = new User({ 
             name,
             email,
             password: hashedPassword,
@@ -118,7 +118,7 @@ app.post('/tasks', authenticateToken, async (req, res) => {
 
 app.get('/tasks', authenticateToken, async (req, res) => {
     try {
-        const tasks = await Task.find({userId: req.user.id});
+        const tasks = await Task.find({ userId: req.user.id }).sort({ dueDate: 1 });
         res.status(200).json(tasks);
     } catch (error) {
         res.status(500).json({ error: 'Internal server error' });
@@ -194,6 +194,48 @@ app.delete('/tasks/:id', authenticateToken, async (req, res) => {
     }
 });
 
-app.listen(process.env.PORT,()=>{
+const scheduleEmailReminder = (task, reminderDate) => {
+    
+    console.log(`Scheduling email reminder for task ${task.title} on ${reminderDate}`);
+
+};
+
+app.post('/tasks/:id/reminder', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const { reminderDate } = req.body;
+
+    try {
+        const task = await Task.findOne({ userId: req.user.id, _id: id });
+
+        if (!task) {
+            return res.status(404).json({ error: 'No task found' });
+        }
+
+        task.reminderDate = reminderDate;
+        await task.save();
+
+        scheduleEmailReminder(task, reminderDate);
+
+        res.status(200).json({ message: 'Reminder set successfully' });
+    } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.get('/users',async(req,res)=>{
+    try{
+        const users = await User.find()
+
+        if(!users){
+            res.status(401).json({error:`No users exist`})
+        }
+
+        res.status(201).json(users)
+    }catch(error){
+        res.status(400).json({error:`Internal server error`})
+    }
+})
+
+app.listen(process.env.PORT,()=>{ 
     console.log(`server is running on port ${process.env.PORT}`)
 })
