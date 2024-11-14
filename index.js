@@ -62,7 +62,7 @@ app.post('/auth/login' , async(req,res)=>{
         const existingUser = await User.findOne({email})
 
         if(!existingUser){
-            res.status(401).json({error:`No User exists with given email`})
+            return res.status(401).json({error:`No User exists with given email`})
         }
 
         const isPasswordValid = await bcrypt.compare(password, existingUser.password);
@@ -78,10 +78,9 @@ app.post('/auth/login' , async(req,res)=>{
             token
         })
     }catch(error){
-        res.status(400).json({error:'Internal Server error'});
+        res.status(500).json({error:'Internal Server error'});
     }
 })
-
 
 const authenticateToken = (req, res, next) => {
   const token = req.header('Authorization')?.split(' ')[1];
@@ -99,6 +98,10 @@ const authenticateToken = (req, res, next) => {
 app.post('/tasks', authenticateToken, async (req, res) => {
   try {
     const { title, description, status, priority, dueDate } = req.body;
+
+    if (!title || !description || !dueDate) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
 
     const task = new Task({
       title,
@@ -141,25 +144,13 @@ app.get('/tasks/:id', authenticateToken, async (req, res) => {
     }
 });
 
-// app.get('/tasks/search', authenticateToken, async (req, res) => {
-//     const { name } = req.query;
-
-//     try {
-//         const task = await Task.findOne({ userId: req.user.id, title: name });
-
-//         if (!task) {
-//             return res.status(404).json({ error: 'No task found' });
-//         }
-
-//         res.status(200).json(task);
-//     } catch (error) {
-//         res.status(500).json({ error: 'Internal server error' });
-//     }
-// });
-
 app.put('/tasks/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { title, description, status, priority, dueDate } = req.body;
+
+    if (!title || !description || !dueDate) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
 
     try {
         const updatedTask = await Task.findOneAndUpdate(
@@ -195,14 +186,16 @@ app.delete('/tasks/:id', authenticateToken, async (req, res) => {
 });
 
 const scheduleEmailReminder = (task, reminderDate) => {
-    
     console.log(`Scheduling email reminder for task ${task.title} on ${reminderDate}`);
-
 };
 
 app.post('/tasks/:id/reminder', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { reminderDate } = req.body;
+
+    if (!reminderDate) {
+      return res.status(400).json({ error: 'Missing reminder date' });
+    }
 
     try {
         const task = await Task.findOne({ userId: req.user.id, _id: id });
@@ -227,12 +220,12 @@ app.get('/users',async(req,res)=>{
         const users = await User.find()
 
         if(!users){
-            res.status(401).json({error:`No users exist`})
+            return res.status(404).json({error:`No users exist`})
         }
 
-        res.status(201).json(users)
+        res.status(200).json(users)
     }catch(error){
-        res.status(400).json({error:`Internal server error`})
+        res.status(500).json({error:`Internal server error`})
     }
 })
 
